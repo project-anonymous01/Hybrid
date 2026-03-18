@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid — Virus Detection</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080b10;
+    --surface: #0d1117;
+    --surface2: #111820;
+    --surface3: #161f2c;
+    --border: #1e2d40;
+    --border2: #243447;
+    --accent: #00d4ff;
+    --accent2: #0099cc;
+    --accent-glow: rgba(0,212,255,0.12);
+    --danger: #ff3b5c;
+    --danger-soft: rgba(255,59,92,0.1);
+    --warn: #ffb300;
+    --warn-soft: rgba(255,179,0,0.1);
+    --safe: #00e676;
+    --safe-soft: rgba(0,230,118,0.08);
+    --text: #e2eaf4;
+    --text2: #7a9ab5;
+    --text3: #3d5a73;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Syne', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; overflow-x: hidden; }
+  body::before {
+    content: ''; position: fixed; inset: 0;
+    background-image: linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px), linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+    background-size: 40px 40px; pointer-events: none; z-index: 0;
+  }
+  body::after {
+    content: ''; position: fixed; top: -20%; left: 50%; transform: translateX(-50%);
+    width: 900px; height: 600px;
+    background: radial-gradient(ellipse, rgba(0,100,180,0.07) 0%, transparent 70%);
+    pointer-events: none; z-index: 0;
+  }
+  .wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  nav { position: sticky; top: 0; z-index: 100; background: rgba(8,11,16,0.88); backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); }
+  .nav-inner { display: flex; align-items: center; justify-content: space-between; height: 60px; max-width: 960px; margin: 0 auto; padding: 0 24px; }
+  .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+  .logo-text { font-weight: 800; font-size: 18px; letter-spacing: -0.5px; color: var(--text); }
+  .logo-text span { color: var(--accent); }
+  .nav-badge { font-family: var(--mono); font-size: 10px; color: var(--accent); border: 1px solid rgba(0,212,255,0.3); padding: 2px 10px; border-radius: 20px; letter-spacing: 1px; }
+  .hero { padding: 64px 0 40px; text-align: center; }
+  .hero-label { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 11px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 20px; padding: 6px 16px; border: 1px solid rgba(0,212,255,0.2); border-radius: 20px; background: rgba(0,212,255,0.04); }
+  .pulse-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.7)} }
+  .hero h1 { font-size: clamp(34px,6vw,58px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; margin-bottom: 14px; }
+  .hero h1 .dim { color: var(--text3); }
+  .hero p { font-family: var(--mono); font-size: 12px; color: var(--text2); max-width: 500px; margin: 0 auto 36px; line-height: 1.7; }
+  .stats-bar { display: flex; gap: 1px; background: var(--border); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 36px; }
+  .stat-item { flex: 1; background: var(--surface); padding: 16px; text-align: center; }
+  .stat-num { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--accent); }
+  .stat-lbl { font-size: 11px; color: var(--text3); margin-top: 4px; }
+  .tabs { display: flex; gap: 4px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 4px; width: fit-content; margin: 0 auto 36px; }
+  .tab-btn { display: flex; align-items: center; gap: 8px; padding: 10px 22px; border-radius: 8px; border: none; background: transparent; color: var(--text2); font-family: var(--sans); font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .tab-btn.active { background: var(--surface3); color: var(--text); border: 1px solid var(--border2); box-shadow: 0 2px 12px rgba(0,0,0,0.3); }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .scanner-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 20px; position: relative; overflow: hidden; }
+  .scanner-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); opacity: 0.3; }
+  .card-label { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .card-sub { font-family: var(--mono); font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+  .input-group { display: flex; gap: 10px; align-items: stretch; }
+  .input-wrap { flex: 1; position: relative; }
+  .input-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); opacity: 0.35; pointer-events: none; }
+  .scan-input { width: 100%; background: var(--surface2); border: 1px solid var(--border2); border-radius: 10px; padding: 13px 14px 13px 44px; color: var(--text); font-family: var(--mono); font-size: 13px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+  .scan-input:focus { border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(0,212,255,0.07); }
+  .scan-input::placeholder { color: var(--text3); }
+  .scan-input.error { border-color: var(--danger); }
+  .scan-btn { display: flex; align-items: center; gap: 8px; padding: 13px 22px; background: var(--accent); color: #000; border: none; border-radius: 10px; font-family: var(--sans); font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .scan-btn:hover { background: #33ddff; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,255,0.3); }
+  .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+  .upload-area { border: 2px dashed var(--border2); border-radius: 12px; padding: 44px 32px; text-align: center; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+  .upload-area:hover, .upload-area.drag-over { border-color: var(--accent2); background: var(--accent-glow); }
+  .upload-area input[type="file"] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-title { font-weight: 700; font-size: 15px; margin: 12px 0 6px; }
+  .upload-sub { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .upload-formats { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 10px; }
+  .loading-overlay { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 20px; }
+  .loading-overlay.active { display: block; }
+  .scan-animation { width: 72px; height: 72px; margin: 0 auto 20px; position: relative; }
+  .scan-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid transparent; animation: spin 1.2s linear infinite; }
+  .scan-ring:nth-child(1) { border-top-color: var(--accent); }
+  .scan-ring:nth-child(2) { inset: 8px; border-right-color: var(--accent2); animation-duration: 0.9s; animation-direction: reverse; }
+  .scan-ring:nth-child(3) { inset: 16px; border-bottom-color: rgba(0,212,255,0.3); animation-duration: 1.5s; }
+  .scan-center { position: absolute; inset: 26px; border-radius: 50%; background: var(--accent-glow); display: flex; align-items: center; justify-content: center; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-title { font-weight: 700; font-size: 17px; margin-bottom: 6px; }
+  .loading-sub { font-family: var(--mono); font-size: 12px; color: var(--text2); margin-bottom: 20px; }
+  .loading-steps { display: flex; flex-direction: column; gap: 7px; max-width: 300px; margin: 0 auto; text-align: left; }
+  .loading-step { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 12px; color: var(--text3); padding: 5px 10px; border-radius: 6px; transition: all 0.3s; }
+  .loading-step.done { color: var(--safe); background: var(--safe-soft); }
+  .loading-step.active { color: var(--accent); background: var(--accent-glow); }
+  .step-icon { width: 14px; flex-shrink: 0; }
+  .progress-bar-wrap { height: 3px; background: var(--surface3); border-radius: 2px; margin-top: 20px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent2), var(--accent)); border-radius: 2px; width: 0%; transition: width 0.5s ease; }
+  .results { display: none; animation: fadeUp 0.4s ease; }
+  .results.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+  .result-header { display: flex; align-items: center; gap: 18px; padding: 24px 28px; border-radius: 16px; margin-bottom: 14px; border: 1px solid; position: relative; overflow: hidden; }
+  .result-header::before { content: ''; position: absolute; inset: 0; opacity: 0.05; background: radial-gradient(circle at 0% 50%, currentColor 0%, transparent 60%); }
+  .result-header.safe { border-color: var(--safe); color: var(--safe); background: var(--safe-soft); }
+  .result-header.danger { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+  .result-header.warning { border-color: var(--warn); color: var(--warn); background: var(--warn-soft); }
+  .result-icon { width: 52px; height: 52px; border-radius: 13px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 22px; background: rgba(255,255,255,0.05); border: 1px solid currentColor; }
+  .result-title-wrap { flex: 1; min-width: 0; }
+  .result-verdict { font-size: 20px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .result-url { font-family: var(--mono); font-size: 11px; color: var(--text2); word-break: break-all; }
+  .result-score { text-align: right; flex-shrink: 0; }
+  .score-number { font-size: 32px; font-weight: 800; font-family: var(--mono); line-height: 1; }
+  .score-label { font-family: var(--mono); font-size: 10px; color: var(--text2); letter-spacing: 1px; }
+  .detection-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+  .det-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .det-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: 1px; margin-bottom: 6px; text-transform: uppercase; }
+  .det-value { font-weight: 700; font-size: 14px; margin-bottom: 10px; }
+  .bar-track { height: 5px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(0.4,0,0.2,1); }
+  .bar-fill.danger-bar { background: linear-gradient(90deg, #ff3b5c, #ff6b8a); }
+  .bar-fill.warn-bar { background: linear-gradient(90deg, #ffb300, #ffd54f); }
+  .bar-fill.safe-bar { background: linear-gradient(90deg, #00e676, #69f0ae); }
+  .votes-row { display: flex; gap: 8px; margin-bottom: 14px; }
+  .vote-chip { flex: 1; padding: 14px; border-radius: 10px; text-align: center; border: 1px solid var(--border); background: var(--surface); }
+  .vote-num { font-family: var(--mono); font-size: 22px; font-weight: 700; }
+  .vote-lbl { font-size: 10px; color: var(--text2); margin-top: 4px; font-family: var(--mono); letter-spacing: 1px; }
+  .vote-chip.v-mal .vote-num { color: var(--danger); }
+  .vote-chip.v-sus .vote-num { color: var(--warn); }
+  .vote-chip.v-safe .vote-num { color: var(--safe); }
+  .info-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+  .card-title { font-size: 12px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--text2); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .indicator-list { display: flex; flex-direction: column; gap: 8px; }
+  .indicator-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.5; }
+  .indicator-item.bad { background: var(--danger-soft); border: 1px solid rgba(255,59,92,0.12); }
+  .indicator-item.good { background: var(--safe-soft); border: 1px solid rgba(0,230,118,0.12); }
+  .indicator-item.neutral { background: var(--surface2); border: 1px solid var(--border); }
+  .indicator-item.warn-item { background: var(--warn-soft); border: 1px solid rgba(255,179,0,0.12); }
+  .ind-icon { font-size: 13px; margin-top: 1px; flex-shrink: 0; width: 16px; text-align: center; }
+  .ind-text strong { display: block; margin-bottom: 1px; font-size: 13px; }
+  .ind-text small { font-family: var(--mono); font-size: 11px; color: var(--text2); }
+  .engine-scroll { max-height: 360px; overflow-y: auto; border-radius: 8px; }
+  .engine-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12px; }
+  .engine-table th { text-align: left; padding: 9px 12px; color: var(--text3); font-size: 10px; letter-spacing: 1px; text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  .engine-table td { padding: 9px 12px; border-bottom: 1px solid rgba(30,45,64,0.4); vertical-align: middle; }
+  .engine-table tr:last-child td { border-bottom: none; }
+  .engine-table tr:hover td { background: var(--surface2); }
+  .engine-status { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .es-mal { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(255,59,92,0.2); }
+  .es-sus { background: var(--warn-soft); color: var(--warn); border: 1px solid rgba(255,179,0,0.2); }
+  .es-clean { background: var(--safe-soft); color: var(--safe); border: 1px solid rgba(0,230,118,0.2); }
+  .es-unrated { background: var(--surface3); color: var(--text3); border: 1px solid var(--border); }
+  .badge-tip { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--surface2); border: 1px solid var(--border); color: var(--text2); }
+  .new-scan-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 13px; background: var(--surface); border: 1px solid var(--border2); border-radius: 10px; color: var(--text2); font-family: var(--sans); font-weight: 600; font-size: 14px; cursor: pointer; transition: all 0.2s; margin-top: 14px; }
+  .new-scan-btn:hover { border-color: var(--accent2); color: var(--accent); background: var(--accent-glow); }
+  .api-error { background: var(--danger-soft); border: 1px solid rgba(255,59,92,0.2); border-radius: 12px; padding: 18px 20px; margin-bottom: 14px; font-family: var(--mono); font-size: 13px; color: var(--danger); line-height: 1.6; }
+  footer { border-top: 1px solid var(--border); padding: 24px 0; text-align: center; font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 60px; }
+  footer span { color: var(--accent); }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  @media (max-width: 600px) {
+    .input-group { flex-direction: column; }
+    .detection-grid { grid-template-columns: 1fr; }
+    .votes-row { flex-wrap: wrap; }
+    .stats-bar { flex-wrap: wrap; }
+    .stat-item { flex: 0 0 50%; }
+    .result-score { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-inner">
+    <a href="#" class="logo">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+        <polygon points="16,2 28,8 28,20 16,30 4,20 4,8" fill="none" stroke="#00d4ff" stroke-width="1.5"/>
+        <polygon points="16,7 23,10.5 23,18.5 16,24 9,18.5 9,10.5" fill="rgba(0,212,255,0.07)" stroke="rgba(0,212,255,0.35)" stroke-width="1"/>
+        <circle cx="16" cy="16" r="3" fill="#00d4ff"/>
+        <line x1="16" y1="7" x2="16" y2="12" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+        <line x1="16" y1="20" x2="16" y2="25" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+        <line x1="9" y1="10.5" x2="13" y2="13" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+        <line x1="19" y1="19" x2="23" y2="21" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+        <line x1="23" y1="10.5" x2="19" y2="13" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+        <line x1="13" y1="19" x2="9" y2="21" stroke="#00d4ff" stroke-width="1" stroke-dasharray="2,1"/>
+      </svg>
+      <span class="logo-text">Hybrid<span>.</span></span>
+    </a>
+    <div class="nav-badge">VIRUSTOTAL POWERED</div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <div class="hero">
+    <div class="hero-label"><div class="pulse-dot"></div>Real Detection · 70+ Engines</div>
+    <h1>Scan Before You <span class="dim">Trust</span></h1>
+    <p>Powered by VirusTotal API — real verdicts from Kaspersky, Bitdefender, Google, ESET, Norton, Avast, and 70+ more engines.</p>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item"><div class="stat-num">70+</div><div class="stat-lbl">Security Engines</div></div>
+    <div class="stat-item"><div class="stat-num">4.2B+</div><div class="stat-lbl">URLs in Database</div></div>
+    <div class="stat-item"><div class="stat-num">Real</div><div class="stat-lbl">Live Results</div></div>
+    <div class="stat-item"><div class="stat-num">&lt;10s</div><div class="stat-lbl">Avg Scan Time</div></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('url',this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      URL Scanner
+    </button>
+    <button class="tab-btn" onclick="switchTab('apk',this)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+      File Scanner
+    </button>
+  </div>
+
+  <!-- URL TAB -->
+  <div class="tab-content active" id="tab-url">
+    <div class="scanner-card">
+      <div class="card-label">Scan URL / Link</div>
+      <div class="card-sub">Detects phishing, malware, scam, suspicious redirects — real results from 70+ engines</div>
+      <div class="input-group">
+        <div class="input-wrap">
+          <div class="input-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7a9ab5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          </div>
+          <input class="scan-input" id="urlInput" type="url" placeholder="https://example.com" autocomplete="off" spellcheck="false" onkeydown="if(event.key==='Enter')scanURL()"/>
+        </div>
+        <button class="scan-btn" onclick="scanURL()" id="urlScanBtn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+          Scan
+        </button>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="urlLoading">
+      <div class="scan-animation">
+        <div class="scan-ring"></div><div class="scan-ring"></div><div class="scan-ring"></div>
+        <div class="scan-center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+      </div>
+      <div class="loading-title">Analyzing URL...</div>
+      <div class="loading-sub" id="urlLoadSub">Submitting to VirusTotal</div>
+      <div class="loading-steps">
+        <div class="loading-step" id="uls0"><span class="step-icon">○</span> Submitting URL</div>
+        <div class="loading-step" id="uls1"><span class="step-icon">○</span> Running 70+ Engines</div>
+        <div class="loading-step" id="uls2"><span class="step-icon">○</span> Fetching Verdicts</div>
+        <div class="loading-step" id="uls3"><span class="step-icon">○</span> Processing Results</div>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="urlPBar"></div></div>
+    </div>
+    <div class="results" id="urlResults"></div>
+  </div>
+
+  <!-- FILE TAB -->
+  <div class="tab-content" id="tab-apk">
+    <div class="scanner-card">
+      <div class="card-label">Scan File / APK</div>
+      <div class="card-sub">Detects malware, trojans, ransomware, spyware — max 32MB (VirusTotal free tier)</div>
+      <div class="upload-area" id="uploadArea">
+        <input type="file" id="apkInput" onchange="onFileSelect(this)"/>
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#3d5a73" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="upload-title">Drop file here or click to browse</div>
+        <div class="upload-sub">Max 32MB · Free tier</div>
+        <div class="upload-formats">APK · EXE · ZIP · JAR · DEX · IPA · PDF · DOC</div>
+      </div>
+    </div>
+
+    <div class="loading-overlay" id="apkLoading">
+      <div class="scan-animation">
+        <div class="scan-ring"></div><div class="scan-ring"></div><div class="scan-ring"></div>
+        <div class="scan-center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#00d4ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/></svg></div>
+      </div>
+      <div class="loading-title">Scanning File...</div>
+      <div class="loading-sub" id="apkLoadSub">Uploading to VirusTotal</div>
+      <div class="loading-steps">
+        <div class="loading-step" id="als0"><span class="step-icon">○</span> Uploading File</div>
+        <div class="loading-step" id="als1"><span class="step-icon">○</span> Running 70+ Engines</div>
+        <div class="loading-step" id="als2"><span class="step-icon">○</span> Fetching Verdicts</div>
+        <div class="loading-step" id="als3"><span class="step-icon">○</span> Processing Results</div>
+      </div>
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="apkPBar"></div></div>
+    </div>
+    <div class="results" id="apkResults"></div>
+  </div>
+</main>
+
+<footer>
+  <div><span>Hybrid</span> · Powered by VirusTotal Public API · 70+ Real Security Engines<br>
+  <span style="display:block;margin-top:4px;font-size:10px">Free tier: 4 requests/min · 500/day</span></div>
+</footer>
+
+<script>
+const VT_KEY = 'cd4be891979c8b86bb107ce28d03bf4dcdc68870e8823593543ff5fd527efd6c';
+const VT = 'https://www.virustotal.com/api/v3';
+const H = () => ({ 'x-apikey': VT_KEY });
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tab-'+tab).classList.add('active');
+}
+
+function stepDone(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('active'); el.classList.add('done');
+  el.querySelector('.step-icon').textContent = '✓';
+}
+function stepActive(id, pbarId, pct) {
+  const el = document.getElementById(id);
+  if (el) { el.classList.add('active'); el.querySelector('.step-icon').textContent = '›'; }
+  document.getElementById(pbarId).style.width = pct + '%';
+}
+function resetSteps(ids) {
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.classList.remove('active','done'); el.querySelector('.step-icon').textContent = '○'; }
+  });
+}
+
+async function pollAnalysis(id, max=90000) {
+  const t = Date.now();
+  while (Date.now()-t < max) {
+    await new Promise(r=>setTimeout(r,3500));
+    const res = await fetch(`${VT}/analyses/${id}`, { headers: H() });
+    if (!res.ok) continue;
+    const d = await res.json();
+    if (d.data?.attributes?.status === 'completed') return d;
+  }
+  return null;
+}
+
+// ── URL SCAN ──
+async function scanURL() {
+  const input = document.getElementById('urlInput');
+  const url = input.value.trim();
+  if (!url) { input.classList.add('error'); setTimeout(()=>input.classList.remove('error'),1500); return; }
+  if (!/^https?:\/\//i.test(url)) {
+    input.placeholder = 'Must start with http:// or https://';
+    input.classList.add('error');
+    setTimeout(()=>{ input.classList.remove('error'); input.placeholder='https://example.com'; }, 2000);
+    return;
+  }
+
+  const loading = document.getElementById('urlLoading');
+  const results = document.getElementById('urlResults');
+  results.classList.remove('active'); results.innerHTML = '';
+  loading.classList.add('active');
+  document.getElementById('urlScanBtn').disabled = true;
+  resetSteps(['uls0','uls1','uls2','uls3']);
+  document.getElementById('urlPBar').style.width = '0%';
+
+  try {
+    stepActive('uls0','urlPBar',15);
+    document.getElementById('urlLoadSub').textContent = 'Submitting URL...';
+
+    // base64url encode
+    const encoded = btoa(url).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+
+    // Try cached first
+    let vtData = null;
+    const cached = await fetch(`${VT}/urls/${encoded}`, { headers: H() });
+    if (cached.ok) {
+      vtData = await cached.json();
+      const age = vtData.data?.attributes?.last_analysis_date;
+      // if older than 7 days, re-scan
+      if (!age || (Date.now()/1000 - age) > 604800) vtData = null;
+    }
+
+    if (!vtData) {
+      stepDone('uls0');
+      stepActive('uls1','urlPBar',35);
+      document.getElementById('urlLoadSub').textContent = 'Queued for scanning...';
+
+      const form = new FormData();
+      form.append('url', url);
+      const sub = await fetch(`${VT}/urls`, { method:'POST', headers:{ 'x-apikey': VT_KEY }, body: form });
+      const subData = await sub.json();
+      if (!sub.ok) throw new Error(subData.error?.message || `HTTP ${sub.status}`);
+
+      stepDone('uls1');
+      stepActive('uls2','urlPBar',60);
+      document.getElementById('urlLoadSub').textContent = 'Engines scanning...';
+
+      await pollAnalysis(subData.data.id);
+
+      const rep = await fetch(`${VT}/urls/${encoded}`, { headers: H() });
+      if (!rep.ok) throw new Error('Could not fetch report');
+      vtData = await rep.json();
+    } else {
+      stepDone('uls0'); stepDone('uls1');
+      stepActive('uls2','urlPBar',60);
+    }
+
+    stepDone('uls2');
+    stepActive('uls3','urlPBar',90);
+    document.getElementById('urlLoadSub').textContent = 'Building report...';
+    await new Promise(r=>setTimeout(r,500));
+    stepDone('uls3');
+    document.getElementById('urlPBar').style.width = '100%';
+    await new Promise(r=>setTimeout(r,400));
+
+    loading.classList.remove('active');
+    document.getElementById('urlScanBtn').disabled = false;
+    renderURLResults(url, vtData);
+
+  } catch(err) {
+    loading.classList.remove('active');
+    document.getElementById('urlScanBtn').disabled = false;
+    results.innerHTML = `<div class="api-error">⚠ ${err.message}<br><small style="opacity:.7">Free tier: 4 req/min · 500/day. Wait a moment and try again.</small></div>`;
+    results.classList.add('active');
+  }
+}
+
+function renderURLResults(url, data) {
+  const results = document.getElementById('urlResults');
+  const attr = data?.data?.attributes || {};
+  const stats = attr.last_analysis_stats || {};
+  const engines = attr.last_analysis_results || {};
+
+  const mal = stats.malicious||0, sus = stats.suspicious||0;
+  const clean = stats.harmless||0, undet = stats.undetected||0;
+  const total = mal+sus+clean+undet||1;
+
+  let vc, icon, vl;
+  if (mal>0) { vc='danger'; icon='☠'; vl=`Malicious — ${mal} engine${mal>1?'s':''} detected`; }
+  else if (sus>0) { vc='warning'; icon='⚠'; vl=`Suspicious — ${sus} engine${sus>1?'s':''} flagged`; }
+  else { vc='safe'; icon='✓'; vl='Clean — No threats detected'; }
+
+  const cats = attr.categories ? Object.values(attr.categories).slice(0,3).join(', ') : null;
+  const rep = attr.reputation ?? null;
+  const lastScan = attr.last_analysis_date ? new Date(attr.last_analysis_date*1000).toLocaleString() : 'Just now';
+
+  const engineRows = Object.entries(engines).sort((a,b)=>{
+    const order = {malicious:0,suspicious:1,harmless:2,undetected:3};
+    return (order[a[1].category]??4)-(order[b[1].category]??4);
+  }).map(([name, r]) => {
+    let sc='es-unrated', sl='Unrated';
+    if (r.category==='malicious'){sc='es-mal';sl='Malicious';}
+    else if(r.category==='suspicious'){sc='es-sus';sl='Suspicious';}
+    else if(r.category==='harmless'||r.category==='clean'){sc='es-clean';sl='Clean';}
+    return `<tr><td style="color:var(--text)">${name}</td><td><span class="engine-status ${sc}">${sl}</span></td><td style="color:var(--text2)">${r.result||'—'}</td></tr>`;
+  }).join('');
+
+  const metaItems = [
+    cats ? `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>Categories</strong><small>${cats}</small></div></div>` : '',
+    rep!==null ? `<div class="indicator-item ${rep<0?'bad':'good'}"><span class="ind-icon">${rep<0?'✕':'✓'}</span><div class="ind-text"><strong>Community Reputation</strong><small>${rep} — ${rep<0?'Negative (community flagged)':'Positive or neutral'}</small></div></div>` : '',
+    `<div class="indicator-item neutral"><span class="ind-icon">◷</span><div class="ind-text"><strong>Last Scanned</strong><small>${lastScan}</small></div></div>`,
+    `<div class="indicator-item ${mal>0?'bad':sus>0?'warn-item':'good'}"><span class="ind-icon">${mal>0?'✕':sus>0?'!':'✓'}</span><div class="ind-text"><strong>Detection Ratio</strong><small>${mal+sus} / ${total} engines flagged this URL</small></div></div>`,
+  ].filter(Boolean).join('');
+
+  results.innerHTML = `
+    <div class="result-header ${vc}">
+      <div class="result-icon">${icon}</div>
+      <div class="result-title-wrap">
+        <div class="result-verdict">${vl}</div>
+        <div class="result-url">${url}</div>
+      </div>
+      <div class="result-score">
+        <div class="score-number" style="color:${vc==='danger'?'var(--danger)':vc==='warning'?'var(--warn)':'var(--safe)'}">${mal+sus}<span style="font-size:14px">/${total}</span></div>
+        <div class="score-label">DETECTIONS</div>
+      </div>
+    </div>
+
+    <div class="detection-grid">
+      ${dCard('Malicious',mal,total,'danger')}
+      ${dCard('Suspicious',sus,total,'warn')}
+      ${dCard('Clean',clean,total,'safe')}
+      ${dCard('Undetected',undet,total,'')}
+    </div>
+
+    <div class="votes-row">
+      <div class="vote-chip v-mal"><div class="vote-num">${mal}</div><div class="vote-lbl">MALICIOUS</div></div>
+      <div class="vote-chip v-sus"><div class="vote-num">${sus}</div><div class="vote-lbl">SUSPICIOUS</div></div>
+      <div class="vote-chip v-safe"><div class="vote-num">${clean}</div><div class="vote-lbl">CLEAN</div></div>
+    </div>
+
+    <div class="info-card"><div class="card-title">URL Details</div><div class="indicator-list">${metaItems}</div></div>
+
+    <div class="info-card">
+      <div class="card-title">Engine Results <span class="badge-tip">${Object.keys(engines).length} engines</span></div>
+      <div class="engine-scroll">
+        <table class="engine-table">
+          <thead><tr><th>Engine</th><th>Status</th><th>Threat Name</th></tr></thead>
+          <tbody>${engineRows||'<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:20px">No engine data available yet</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="new-scan-btn" onclick="resetURL()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.75"/></svg>
+      Scan Another URL
+    </button>`;
+  results.classList.add('active');
+  results.scrollIntoView({behavior:'smooth',block:'start'});
+  animBars();
+}
+
+// ── FILE SCAN ──
+function onFileSelect(inp) { if(inp.files?.[0]) scanFile(inp.files[0]); }
+
+const ua = document.getElementById('uploadArea');
+ua.addEventListener('dragover', e=>{e.preventDefault();ua.classList.add('drag-over');});
+ua.addEventListener('dragleave', ()=>ua.classList.remove('drag-over'));
+ua.addEventListener('drop', e=>{e.preventDefault();ua.classList.remove('drag-over');if(e.dataTransfer.files[0])scanFile(e.dataTransfer.files[0]);});
+
+async function scanFile(file) {
+  const loading = document.getElementById('apkLoading');
+  const results = document.getElementById('apkResults');
+  results.classList.remove('active'); results.innerHTML = '';
+  loading.classList.add('active');
+  resetSteps(['als0','als1','als2','als3']);
+  document.getElementById('apkPBar').style.width = '0%';
+
+  if (file.size > 32*1024*1024) {
+    loading.classList.remove('active');
+    results.innerHTML = `<div class="api-error">⚠ File too large — max 32MB for free tier.<br><small>Current: ${(file.size/1048576).toFixed(1)}MB</small></div>`;
+    results.classList.add('active'); return;
+  }
+
+  try {
+    stepActive('als0','apkPBar',15);
+    document.getElementById('apkLoadSub').textContent = `Uploading ${file.name}...`;
+
+    const form = new FormData();
+    form.append('file', file);
+    const up = await fetch(`${VT}/files`, { method:'POST', headers:{ 'x-apikey': VT_KEY }, body: form });
+    const upData = await up.json();
+    if (!up.ok) throw new Error(upData.error?.message || `Upload failed (${up.status})`);
+
+    stepDone('als0');
+    stepActive('als1','apkPBar',35);
+    document.getElementById('apkLoadSub').textContent = 'Engines scanning...';
+
+    const analysis = await pollAnalysis(upData.data.id, 120000);
+    if (!analysis) throw new Error('Scan timed out — engines may still be running. Try again in a minute.');
+
+    stepDone('als1');
+    stepActive('als2','apkPBar',70);
+    document.getElementById('apkLoadSub').textContent = 'Fetching full report...';
+
+    const sha256 = analysis?.meta?.file_info?.sha256 || analysis?.data?.attributes?.sha256;
+    let vtData = analysis;
+    if (sha256) {
+      const r = await fetch(`${VT}/files/${sha256}`, { headers: H() });
+      if (r.ok) vtData = await r.json();
+    }
+
+    stepDone('als2');
+    stepActive('als3','apkPBar',90);
+    document.getElementById('apkLoadSub').textContent = 'Building report...';
+    await new Promise(r=>setTimeout(r,500));
+    stepDone('als3');
+    document.getElementById('apkPBar').style.width = '100%';
+    await new Promise(r=>setTimeout(r,400));
+
+    loading.classList.remove('active');
+    renderFileResults(file, vtData);
+
+  } catch(err) {
+    loading.classList.remove('active');
+    results.innerHTML = `<div class="api-error">⚠ ${err.message}<br><small style="opacity:.7">Free tier: 4 req/min. Wait a moment and retry.</small></div>`;
+    results.classList.add('active');
+  }
+}
+
+function renderFileResults(file, data) {
+  const results = document.getElementById('apkResults');
+  const attr = data?.data?.attributes || {};
+  const stats = attr.last_analysis_stats || {};
+  const engines = attr.last_analysis_results || {};
+
+  const mal=stats.malicious||0, sus=stats.suspicious||0;
+  const clean=stats.harmless||0, undet=stats.undetected||0;
+  const total=mal+sus+clean+undet||1;
+
+  let vc, icon, vl;
+  if (mal>0) { vc='danger'; icon='☠'; vl=`Malware Detected — ${mal} engine${mal>1?'s':''} flagged`; }
+  else if (sus>0) { vc='warning'; icon='⚠'; vl=`Suspicious File — ${sus} engine${sus>1?'s':''} flagged`; }
+  else { vc='safe'; icon='✓'; vl='Clean — No malware detected'; }
+
+  const threats = [...new Set(Object.values(engines).filter(e=>e.category==='malicious'&&e.result).map(e=>e.result))].slice(0,5);
+  const sha256 = attr.sha256||'—', sha1=attr.sha1||'—', md5=attr.md5||'—';
+  const ftype = attr.type_description||attr.magic||file.name.split('.').pop().toUpperCase();
+  const sizeMB = (file.size/1048576).toFixed(2);
+  const lastScan = attr.last_analysis_date ? new Date(attr.last_analysis_date*1000).toLocaleString() : 'Just now';
+
+  const engineRows = Object.entries(engines).sort((a,b)=>{
+    const o={malicious:0,suspicious:1,harmless:2,undetected:3};
+    return (o[a[1].category]??4)-(o[b[1].category]??4);
+  }).map(([name,r])=>{
+    let sc='es-unrated',sl='Unrated';
+    if(r.category==='malicious'){sc='es-mal';sl='Malicious';}
+    else if(r.category==='suspicious'){sc='es-sus';sl='Suspicious';}
+    else if(r.category==='harmless'||r.category==='clean'){sc='es-clean';sl='Clean';}
+    return `<tr><td style="color:var(--text)">${name}</td><td><span class="engine-status ${sc}">${sl}</span></td><td style="color:var(--text2)">${r.result||'—'}</td></tr>`;
+  }).join('');
+
+  const metaItems = [
+    `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>File Type</strong><small>${ftype}</small></div></div>`,
+    `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>File Size</strong><small>${sizeMB} MB</small></div></div>`,
+    `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>MD5</strong><small style="word-break:break-all">${md5}</small></div></div>`,
+    `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>SHA-1</strong><small style="word-break:break-all">${sha1}</small></div></div>`,
+    `<div class="indicator-item neutral"><span class="ind-icon">◈</span><div class="ind-text"><strong>SHA-256</strong><small style="word-break:break-all">${sha256}</small></div></div>`,
+    `<div class="indicator-item neutral"><span class="ind-icon">◷</span><div class="ind-text"><strong>Last Analyzed</strong><small>${lastScan}</small></div></div>`,
+    threats.length ? `<div class="indicator-item bad"><span class="ind-icon">✕</span><div class="ind-text"><strong>Threat Names</strong><small>${threats.join(', ')}</small></div></div>` : '',
+    `<div class="indicator-item ${mal>0?'bad':sus>0?'warn-item':'good'}"><span class="ind-icon">${mal>0?'✕':sus>0?'!':'✓'}</span><div class="ind-text"><strong>Detection Ratio</strong><small>${mal+sus} / ${total} engines flagged this file</small></div></div>`,
+  ].filter(Boolean).join('');
+
+  results.innerHTML = `
+    <div class="result-header ${vc}">
+      <div class="result-icon">${icon}</div>
+      <div class="result-title-wrap">
+        <div class="result-verdict">${vl}</div>
+        <div class="result-url">${file.name} · ${sizeMB}MB</div>
+      </div>
+      <div class="result-score">
+        <div class="score-number" style="color:${vc==='danger'?'var(--danger)':vc==='warning'?'var(--warn)':'var(--safe)'}">${mal+sus}<span style="font-size:14px">/${total}</span></div>
+        <div class="score-label">DETECTIONS</div>
+      </div>
+    </div>
+
+    <div class="detection-grid">
+      ${dCard('Malicious',mal,total,'danger')}
+      ${dCard('Suspicious',sus,total,'warn')}
+      ${dCard('Clean',clean,total,'safe')}
+      ${dCard('Undetected',undet,total,'')}
+    </div>
+
+    <div class="votes-row">
+      <div class="vote-chip v-mal"><div class="vote-num">${mal}</div><div class="vote-lbl">MALICIOUS</div></div>
+      <div class="vote-chip v-sus"><div class="vote-num">${sus}</div><div class="vote-lbl">SUSPICIOUS</div></div>
+      <div class="vote-chip v-safe"><div class="vote-num">${clean}</div><div class="vote-lbl">CLEAN</div></div>
+    </div>
+
+    <div class="info-card"><div class="card-title">File Details & Hashes</div><div class="indicator-list">${metaItems}</div></div>
+
+    <div class="info-card">
+      <div class="card-title">Engine Results <span class="badge-tip">${Object.keys(engines).length} engines</span></div>
+      <div class="engine-scroll">
+        <table class="engine-table">
+          <thead><tr><th>Engine</th><th>Status</th><th>Threat Name</th></tr></thead>
+          <tbody>${engineRows||'<tr><td colspan="3" style="color:var(--text3);text-align:center;padding:20px">Waiting for engine results...</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="new-scan-btn" onclick="resetAPK()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.75"/></svg>
+      Scan Another File
+    </button>`;
+  results.classList.add('active');
+  results.scrollIntoView({behavior:'smooth',block:'start'});
+  animBars();
+}
+
+function dCard(label, count, total, type) {
+  const pct = Math.round(count/total*100);
+  const bc = type==='danger'?'danger-bar':type==='warn'?'warn-bar':type==='safe'?'safe-bar':'';
+  const col = type==='danger'?'var(--danger)':type==='warn'?'var(--warn)':type==='safe'?'var(--safe)':'var(--text2)';
+  return `<div class="det-card"><div class="det-label">${label}</div><div class="det-value" style="color:${col}">${count}<span style="font-size:12px;color:var(--text3)"> / ${total}</span></div><div class="bar-track"><div class="bar-fill ${bc}" style="width:${pct}%"></div></div></div>`;
+}
+
+function animBars() {
+  document.querySelectorAll('.bar-fill').forEach(b => {
+    const w = b.style.width; b.style.width='0%';
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{ b.style.width=w; }));
+  });
+}
+
+function resetURL() {
+  document.getElementById('urlResults').classList.remove('active');
+  document.getElementById('urlResults').innerHTML='';
+  document.getElementById('urlInput').value='';
+  document.getElementById('urlInput').focus();
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function resetAPK() {
+  document.getElementById('apkResults').classList.remove('active');
+  document.getElementById('apkResults').innerHTML='';
+  document.getElementById('apkInput').value='';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>
