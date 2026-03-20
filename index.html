@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Hybrid — YouTube Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f4f1;--surface:#fff;
+  --border:#e4e2db;--border2:#ccc9c0;
+  --t1:#18170f;--t2:#67655d;--t3:#9c9990;
+  --red:#e03535;--red-h:#c52c2c;--red-bg:#fef1f1;
+  --green:#267a41;--green-bg:#eef8f2;
+  --r:12px;--rs:8px;
+  --sh:0 1px 4px rgba(0,0,0,.07);
+}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--t1);min-height:100vh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+
+/* HEADER */
+header{width:100%;max-width:520px;margin:0 auto;padding:20px 16px 0;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:9px}
+.logo-icon{width:30px;height:30px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.logo-icon svg{width:15px;height:15px;fill:#fff}
+.logo-name{font-size:15.5px;font-weight:600;letter-spacing:-.3px;line-height:1.1}
+.logo-tag{font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-top:1px}
+
+/* MAIN */
+main{flex:1;display:flex;flex-direction:column;align-items:center;width:100%;max-width:520px;margin:0 auto;padding:28px 16px 56px;gap:12px}
+
+/* HERO */
+.hero{text-align:center;padding-bottom:2px;animation:up .4s ease both}
+.hero h1{font-size:clamp(18px,4vw,23px);font-weight:600;letter-spacing:-.4px;line-height:1.3;margin-bottom:5px}
+.hero p{font-size:13px;color:var(--t2);line-height:1.5}
+
+/* INPUT CARD */
+.input-card{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px;box-shadow:var(--sh);animation:up .4s .07s ease both}
+.input-row{display:flex;gap:8px;align-items:center}
+.url-input{flex:1;min-width:0;padding:10px 13px;border:1px solid var(--border);border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:13.5px;color:var(--t1);background:var(--bg);outline:none;transition:border-color .2s,background .2s;line-height:1.4}
+.url-input::placeholder{color:var(--t3);font-size:13px}
+.url-input:focus{border-color:var(--border2);background:#fff}
+.btn-search{padding:10px 15px;background:var(--red);color:#fff;border:none;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:5px;flex-shrink:0;transition:background .15s,transform .1s}
+.btn-search:hover{background:var(--red-h)}
+.btn-search:active{transform:scale(.98)}
+.btn-search:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.btn-search svg{width:13px;height:13px}
+
+/* ERROR */
+.err-box{display:none;align-items:flex-start;gap:7px;padding:9px 12px;border-radius:var(--rs);font-size:12.5px;color:#b91c1c;background:#fff4f4;border:1px solid #fecaca;margin-top:10px;line-height:1.45;animation:up .25s ease both}
+.err-box.show{display:flex}
+.err-box svg{flex-shrink:0;width:13px;height:13px;margin-top:1px}
+
+/* LOADER */
+.loader{display:none;align-items:center;justify-content:center;gap:8px;padding:18px;color:var(--t3);font-size:13px;animation:up .25s ease both}
+.loader.show{display:flex}
+.spin{width:14px;height:14px;border:2px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin .65s linear infinite}
+
+/* PREVIEW CARD */
+.preview-card{display:none;width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);animation:up .35s ease both}
+.preview-card.show{display:block}
+.thumb-wrap{position:relative;width:100%;aspect-ratio:16/9;background:#0f0f0f;overflow:hidden}
+.thumb-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.thumb-dur{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.72);color:#fff;font-family:'DM Mono',monospace;font-size:11px;padding:2px 7px;border-radius:4px;letter-spacing:.2px}
+
+.v-info{padding:12px 13px 0}
+.v-title{font-size:13.5px;font-weight:600;letter-spacing:-.15px;line-height:1.45;margin-bottom:5px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.v-meta{display:flex;flex-wrap:wrap;gap:8px 12px;font-size:11.5px;color:var(--t3)}
+.v-meta span{display:flex;align-items:center;gap:4px}
+.v-meta svg{width:11px;height:11px;flex-shrink:0}
+
+.sep{height:1px;background:var(--border);margin:12px 13px 0}
+
+/* FORMAT */
+.fmt{padding:0 13px 13px}
+.fmt-label{font-size:10px;font-weight:500;color:var(--t3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:9px}
+.fmt-tabs{display:flex;gap:5px;margin-bottom:10px}
+.tab{padding:5px 12px;border:1px solid var(--border);border-radius:20px;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;color:var(--t2);background:transparent;cursor:pointer;transition:all .15s}
+.tab.on{background:var(--t1);border-color:var(--t1);color:#fff}
+.fmt-panel{display:none}
+.fmt-panel.on{display:block}
+
+.q-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+@media(max-width:340px){.q-grid{grid-template-columns:repeat(2,1fr)}}
+
+.q-item{position:relative;padding:9px 10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--bg);cursor:pointer;transition:border-color .15s,background .15s;user-select:none}
+.q-item:hover{border-color:var(--border2);background:#fff}
+.q-item.on{border-color:var(--red);background:var(--red-bg)}
+.q-item .ql{font-size:12.5px;font-weight:600;font-family:'DM Mono',monospace;color:var(--t1)}
+.q-item .qd{font-size:10.5px;color:var(--t3);margin-top:1px;line-height:1.3}
+.q-check{position:absolute;top:6px;right:6px;width:13px;height:13px;background:var(--red);border-radius:50%;display:none;align-items:center;justify-content:center}
+.q-item.on .q-check{display:flex}
+.q-check svg{width:7px;height:7px;fill:#fff}
+
+/* DL BTN */
+.btn-dl{width:100%;margin-top:12px;padding:12px;background:var(--red);color:#fff;border:none;border-radius:var(--rs);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,transform .1s}
+.btn-dl:hover{background:var(--red-h)}
+.btn-dl:active{transform:scale(.99)}
+.btn-dl:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-dl svg{width:15px;height:15px}
+
+/* PROGRESS */
+.prog-wrap{display:none;margin-top:10px;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--rs)}
+.prog-wrap.show{display:block}
+.prog-head{display:flex;justify-content:space-between;font-size:11.5px;color:var(--t2);margin-bottom:6px}
+.prog-bg{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.prog-fill{height:100%;background:var(--red);border-radius:2px;width:0%;transition:width .3s ease}
+
+/* SUCCESS */
+.ok-box{display:none;margin-top:10px;padding:10px 12px;background:var(--green-bg);border:1px solid #a7f3c0;border-radius:var(--rs);font-size:12.5px;color:var(--green);font-weight:500;align-items:center;gap:8px;animation:up .3s ease both}
+.ok-box.show{display:flex}
+.ok-box svg{width:14px;height:14px;flex-shrink:0}
+
+/* FOOTER */
+footer{text-align:center;padding:16px;font-size:11.5px;color:var(--t3);border-top:1px solid var(--border)}
+footer span{color:var(--red)}
+
+@keyframes up{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M19.59 7a2.4 2.4 0 0 0-1.68-1.69C16.24 5 12 5 12 5s-4.24 0-5.91.31A2.4 2.4 0 0 0 4.41 7 25 25 0 0 0 4.1 12a25 25 0 0 0 .31 5 2.4 2.4 0 0 0 1.68 1.69C7.76 19 12 19 12 19s4.24 0 5.91-.31A2.4 2.4 0 0 0 19.59 17 25 25 0 0 0 19.9 12a25 25 0 0 0-.31-5zM10 15V9l5 3-5 3z"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">Hybrid</div>
+      <div class="logo-tag">YouTube Downloader</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Download YouTube<br>dalam sekejap</h1>
+    <p>MP3 atau MP4 — pilih kualitas, langsung unduh.</p>
+  </div>
+
+  <div class="input-card">
+    <div class="input-row">
+      <input id="urlInput" class="url-input" type="url" placeholder="Paste link YouTube di sini..." autocomplete="off" spellcheck="false"/>
+      <button id="searchBtn" class="btn-search" onclick="doSearch()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Cari
+      </button>
+    </div>
+    <div id="errBox" class="err-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errMsg"></span>
+    </div>
+  </div>
+
+  <div id="loader" class="loader">
+    <div class="spin"></div>
+    <span>Mengambil info video...</span>
+  </div>
+
+  <div id="previewCard" class="preview-card">
+    <div class="thumb-wrap">
+      <img id="thumbImg" src="" alt=""/>
+      <div id="durBadge" class="thumb-dur">0:00</div>
+    </div>
+    <div class="v-info">
+      <div id="vidTitle" class="v-title">—</div>
+      <div class="v-meta">
+        <span id="vidCh">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>—
+        </span>
+        <span id="vidVw">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>—
+        </span>
+      </div>
+    </div>
+
+    <div class="sep"></div>
+
+    <div class="fmt">
+      <div class="fmt-label">Format &amp; Kualitas</div>
+      <div class="fmt-tabs">
+        <button id="tabMp3" class="tab on" onclick="switchTab('mp3')">🎵 MP3</button>
+        <button id="tabMp4" class="tab" onclick="switchTab('mp4')">🎬 MP4</button>
+      </div>
+
+      <div id="panelMp3" class="fmt-panel on">
+        <div class="q-grid">
+          <div class="q-item on" onclick="pickMp3(this,'320')">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="ql">320 kbps</div><div class="qd">Terbaik</div>
+          </div>
+          <div class="q-item" onclick="pickMp3(this,'192')">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="ql">192 kbps</div><div class="qd">Standar</div>
+          </div>
+          <div class="q-item" onclick="pickMp3(this,'128')">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="ql">128 kbps</div><div class="qd">Ringan</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="panelMp4" class="fmt-panel">
+        <div id="mp4Grid" class="q-grid"></div>
+      </div>
+
+      <button id="dlBtn" class="btn-dl" onclick="doDownload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+
+      <div id="progWrap" class="prog-wrap">
+        <div class="prog-head"><span id="progLbl">Memproses...</span><span id="progPct">0%</span></div>
+        <div class="prog-bg"><div id="progFill" class="prog-fill"></div></div>
+      </div>
+
+      <div id="okBox" class="ok-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        File berhasil diunduh!
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>Dibuat dengan ❤️ oleh <span>Hybrid</span> · Hanya untuk penggunaan pribadi</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+let curId=null, curFmt='mp3', curMp3Q='320', curMp4Q='720p';
+
+function extractId(u){
+  const rx=[/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/];
+  for(const r of rx){const m=u.match(r);if(m)return m[1];}
+  if(/^[a-zA-Z0-9_-]{11}$/.test(u))return u;
+  return null;
+}
+function fmtDur(s){if(!s)return'0:00';const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),ss=s%60;return h>0?`${h}:${p2(m)}:${p2(ss)}`:`${m}:${p2(ss)}`}
+function p2(n){return String(n).padStart(2,'0')}
+function fmtViews(n){if(!n)return'';if(n>=1e9)return(n/1e9).toFixed(1)+'M penonton';if(n>=1e6)return(n/1e6).toFixed(1)+'Jt penonton';if(n>=1e3)return Math.round(n/1e3)+'Rb penonton';return n+' penonton';}
+
+function showErr(m){$('errMsg').textContent=m;$('errBox').classList.add('show')}
+function hideErr(){$('errBox').classList.remove('show')}
+function setLoad(v){$('loader').classList.toggle('show',v)}
+
+async function doSearch(){
+  hideErr();
+  const raw=$('urlInput').value.trim();
+  if(!raw){showErr('Masukkan link YouTube terlebih dahulu.');return;}
+  const vid=extractId(raw);
+  if(!vid){showErr('Link tidak valid. Pastikan ini adalah URL YouTube.');return;}
+  curId=vid;
+  $('searchBtn').disabled=true;
+  $('previewCard').classList.remove('show');
+  $('okBox').classList.remove('show');
+  $('progWrap').classList.remove('show');
+  setLoad(true);
+  try{
+    const res=await fetch(`/api/info?url=${encodeURIComponent(raw)}`);
+    const data=await res.json();
+    if(!res.ok||!data.status)throw new Error(data.error||'Gagal mengambil info video.');
+    renderPreview(data);
+  }catch(e){showErr(e.message||'Terjadi kesalahan. Coba lagi.');}
+  finally{setLoad(false);$('searchBtn').disabled=false;}
+}
+
+function renderPreview(d){
+  $('thumbImg').src=d.thumbnail||`https://img.youtube.com/vi/${curId}/hqdefault.jpg`;
+  $('durBadge').textContent=fmtDur(d.lengthSeconds);
+  $('vidTitle').textContent=d.title||'Tanpa judul';
+  $('vidCh').innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${d.channelTitle||'—'}`;
+  $('vidVw').innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${fmtViews(d.viewCount)}`;
+  buildMp4(d.mp4Formats||[]);
+  $('previewCard').classList.add('show');
+}
+
+function buildMp4(fmts){
+  const g=$('mp4Grid');g.innerHTML='';
+  const list=fmts.length?fmts:[{quality:'1080p'},{quality:'720p'},{quality:'480p'},{quality:'360p'}];
+  const desc={'1080p':'Full HD','720p':'HD','480p':'Standar','360p':'Ringan'};
+  list.forEach((f,i)=>{
+    const el=document.createElement('div');
+    el.className='q-item'+(i===0?' on':'');
+    el.dataset.q=f.quality;
+    el.onclick=()=>pickMp4(el,f.quality);
+    el.innerHTML=`<div class="q-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div><div class="ql">${f.quality}</div><div class="qd">${desc[f.quality]||''}</div>`;
+    g.appendChild(el);
+  });
+  curMp4Q=list[0]?.quality||'720p';
+}
+
+function pickMp3(el,q){document.querySelectorAll('#panelMp3 .q-item').forEach(i=>i.classList.remove('on'));el.classList.add('on');curMp3Q=q;}
+function pickMp4(el,q){document.querySelectorAll('#mp4Grid .q-item').forEach(i=>i.classList.remove('on'));el.classList.add('on');curMp4Q=q;}
+function switchTab(t){
+  curFmt=t;
+  $('tabMp3').classList.toggle('on',t==='mp3');$('tabMp4').classList.toggle('on',t==='mp4');
+  $('panelMp3').classList.toggle('on',t==='mp3');$('panelMp4').classList.toggle('on',t==='mp4');
+  $('okBox').classList.remove('show');$('progWrap').classList.remove('show');
+}
+
+async function doDownload(){
+  if(!curId)return;
+  const q=curFmt==='mp3'?curMp3Q:curMp4Q;
+  $('dlBtn').disabled=true;
+  $('okBox').classList.remove('show');
+  $('progWrap').classList.add('show');
+  $('progFill').style.width='0%';$('progPct').textContent='0%';
+  $('progLbl').textContent=curFmt==='mp3'?`Mengunduh audio ${q} kbps...`:`Mengunduh video ${q}...`;
+
+  let prog=0;
+  const iv=setInterval(()=>{
+    if(prog<85)prog+=Math.random()*6;
+    const p=Math.min(prog,85);
+    $('progFill').style.width=p+'%';$('progPct').textContent=Math.floor(p)+'%';
+  },350);
+
+  try{
+    const url=`/api/download?url=${encodeURIComponent($('urlInput').value.trim())}&format=${curFmt}&quality=${q}`;
+    const res=await fetch(url);
+    if(!res.ok){const e=await res.json().catch(()=>({error:'Download gagal'}));throw new Error(e.error||'Download gagal');}
+    const disp=res.headers.get('Content-Disposition')||'';
+    let fname=`hybrid_${curId}.${curFmt}`;
+    const m=disp.match(/filename="?([^";\n]+)"?/);if(m)fname=m[1];
+    clearInterval(iv);
+    $('progFill').style.width='100%';$('progPct').textContent='100%';$('progLbl').textContent='Selesai!';
+    const blob=await res.blob();
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fname;
+    document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+    setTimeout(()=>{$('progWrap').classList.remove('show');$('okBox').classList.add('show');},700);
+  }catch(e){
+    clearInterval(iv);$('progWrap').classList.remove('show');showErr(e.message||'Gagal download. Coba lagi.');
+  }finally{$('dlBtn').disabled=false;}
+}
+
+$('urlInput').addEventListener('keydown',e=>{if(e.key==='Enter')doSearch();});
+</script>
+</body>
+</html>
