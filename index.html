@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Hybrid — YouTube Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --border: #e5e3dc;
+    --border-2: #d0cdc4;
+    --text-primary: #1a1916;
+    --text-secondary: #6b6860;
+    --text-muted: #9e9b96;
+    --accent: #e84040;
+    --accent-hover: #c93333;
+    --accent-soft: #fdf0f0;
+    --success: #2d7d46;
+    --success-soft: #edf7f1;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* HEADER */
+  header {
+    padding: 28px 24px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px;
+    height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .logo-icon svg { width: 16px; height: 16px; fill: white; }
+
+  .logo-name {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    color: var(--text-primary);
+  }
+
+  .logo-tag {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    font-family: 'DM Mono', monospace;
+    margin-top: 1px;
+  }
+
+  /* MAIN */
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+    max-width: 680px;
+    margin: 0 auto;
+    width: 100%;
+  }
+
+  .hero {
+    text-align: center;
+    margin-bottom: 40px;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .hero h1 {
+    font-size: clamp(24px, 5vw, 32px);
+    font-weight: 600;
+    letter-spacing: -0.6px;
+    line-height: 1.2;
+    margin-bottom: 10px;
+  }
+
+  .hero p {
+    font-size: 15px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  /* INPUT SECTION */
+  .input-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    width: 100%;
+    box-shadow: var(--shadow-sm);
+    animation: fadeUp 0.5s 0.1s ease both;
+  }
+
+  .input-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .url-input {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--bg);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .url-input::placeholder { color: var(--text-muted); }
+  .url-input:focus { border-color: var(--border-2); background: white; }
+
+  .btn-analyze {
+    padding: 12px 20px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .btn-analyze:hover { background: var(--accent-hover); }
+  .btn-analyze:active { transform: scale(0.98); }
+  .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .btn-analyze svg { width: 14px; height: 14px; }
+
+  /* LOADER */
+  .loader {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px;
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .loader.active { display: flex; }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  /* ERROR */
+  .error-box {
+    display: none;
+    background: #fff5f5;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    font-size: 13.5px;
+    color: #b91c1c;
+    margin-top: 14px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .error-box.active { display: flex; }
+  .error-box svg { flex-shrink: 0; width: 15px; height: 15px; }
+
+  /* PREVIEW CARD */
+  .preview-card {
+    display: none;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    width: 100%;
+    margin-top: 20px;
+    box-shadow: var(--shadow-sm);
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .preview-card.active { display: block; }
+
+  .preview-thumb {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    overflow: hidden;
+    background: #111;
+  }
+
+  .preview-thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .preview-duration {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    padding: 3px 8px;
+    border-radius: 5px;
+  }
+
+  .preview-info {
+    padding: 18px 20px 0;
+  }
+
+  .preview-title {
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: -0.2px;
+    line-height: 1.45;
+    margin-bottom: 6px;
+  }
+
+  .preview-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 13px;
+    color: var(--text-muted);
+    flex-wrap: wrap;
+  }
+
+  .preview-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .preview-meta svg { width: 13px; height: 13px; }
+
+  /* DIVIDER */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 18px 0;
+  }
+
+  /* FORMAT SECTION */
+  .format-section { padding: 0 20px 20px; }
+
+  .format-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 10px;
+  }
+
+  .format-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .tab-btn {
+    padding: 7px 16px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-secondary);
+    transition: all 0.15s;
+  }
+
+  .tab-btn.active {
+    background: var(--text-primary);
+    border-color: var(--text-primary);
+    color: white;
+  }
+
+  .quality-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 8px;
+  }
+
+  .quality-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    background: var(--bg);
+  }
+
+  .quality-item:hover {
+    border-color: var(--border-2);
+    background: white;
+  }
+
+  .quality-item.selected {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .quality-item .q-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .quality-item .q-desc {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .quality-item .q-check {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 16px;
+    height: 16px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .quality-item.selected .q-check { display: flex; }
+  .quality-item .q-check svg { width: 9px; height: 9px; fill: white; }
+
+  /* DOWNLOAD BTN */
+  .btn-download {
+    width: 100%;
+    padding: 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
+  }
+
+  .btn-download:hover { background: var(--accent-hover); }
+  .btn-download:active { transform: scale(0.99); }
+  .btn-download:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+  .btn-download svg { width: 16px; height: 16px; }
+
+  /* PROGRESS */
+  .progress-wrap {
+    display: none;
+    margin-top: 12px;
+    padding: 14px 16px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+  }
+
+  .progress-wrap.active { display: block; }
+
+  .progress-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+
+  .progress-bar-bg {
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+    width: 0%;
+  }
+
+  /* SUCCESS */
+  .success-box {
+    display: none;
+    background: var(--success-soft);
+    border: 1px solid #a7f3c0;
+    border-radius: var(--radius-sm);
+    padding: 13px 16px;
+    font-size: 14px;
+    color: var(--success);
+    margin-top: 12px;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+  }
+
+  .success-box.active { display: flex; }
+  .success-box svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  /* FORMAT PANELS */
+  .format-panel { display: none; }
+  .format-panel.active { display: block; }
+
+  /* FOOTER */
+  footer {
+    text-align: center;
+    padding: 24px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+  }
+
+  footer span { color: var(--accent); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* MOBILE */
+  @media (max-width: 480px) {
+    .input-row { flex-direction: column; }
+    .quality-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">
+      <svg viewBox="0 0 24 24"><path d="M19.59 7a2.4 2.4 0 0 0-1.68-1.69C16.24 5 12 5 12 5s-4.24 0-5.91.31A2.4 2.4 0 0 0 4.41 7 25 25 0 0 0 4.1 12a25 25 0 0 0 .31 5 2.4 2.4 0 0 0 1.68 1.69C7.76 19 12 19 12 19s4.24 0 5.91-.31A2.4 2.4 0 0 0 19.59 17 25 25 0 0 0 19.9 12a25 25 0 0 0-.31-5zM10 15V9l5 3-5 3z"/></svg>
+    </div>
+    <div>
+      <div class="logo-name">Hybrid</div>
+      <div class="logo-tag">YouTube Downloader</div>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="hero">
+    <h1>Download YouTube<br>dengan mudah</h1>
+    <p>MP3 atau MP4 — pilih kualitas, langsung unduh.</p>
+  </div>
+
+  <!-- INPUT CARD -->
+  <div class="input-card">
+    <div class="input-row">
+      <input
+        class="url-input"
+        id="urlInput"
+        type="url"
+        placeholder="Paste link YouTube di sini..."
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="btn-analyze" id="analyzeBtn" onclick="analyzeVideo()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        Cari
+      </button>
+    </div>
+
+    <!-- ERROR -->
+    <div class="error-box" id="errorBox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span id="errorMsg">Terjadi kesalahan.</span>
+    </div>
+  </div>
+
+  <!-- LOADER -->
+  <div class="loader" id="loader">
+    <div class="spinner"></div>
+    <span>Mengambil info video...</span>
+  </div>
+
+  <!-- PREVIEW CARD -->
+  <div class="preview-card" id="previewCard">
+    <div class="preview-thumb">
+      <img id="thumbImg" src="" alt="Thumbnail" />
+      <div class="preview-duration" id="durationBadge">0:00</div>
+    </div>
+    <div class="preview-info">
+      <div class="preview-title" id="videoTitle">—</div>
+      <div class="preview-meta">
+        <span id="channelName">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          —
+        </span>
+        <span id="viewCount">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          —
+        </span>
+      </div>
+    </div>
+
+    <div class="divider" style="margin: 18px 20px 0;"></div>
+
+    <!-- FORMAT SECTION -->
+    <div class="format-section">
+      <div class="format-label">Format & Kualitas</div>
+
+      <div class="format-tabs">
+        <button class="tab-btn active" id="tabMp3" onclick="switchTab('mp3')">🎵 MP3</button>
+        <button class="tab-btn" id="tabMp4" onclick="switchTab('mp4')">🎬 MP4</button>
+      </div>
+
+      <!-- MP3 PANEL -->
+      <div class="format-panel active" id="panelMp3">
+        <div class="quality-grid">
+          <div class="quality-item selected" onclick="selectQuality(this,'mp3','320')" data-format="mp3" data-quality="320">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="q-label">320 kbps</div>
+            <div class="q-desc">Kualitas terbaik</div>
+          </div>
+          <div class="quality-item" onclick="selectQuality(this,'mp3','192')" data-format="mp3" data-quality="192">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="q-label">192 kbps</div>
+            <div class="q-desc">Standar tinggi</div>
+          </div>
+          <div class="quality-item" onclick="selectQuality(this,'mp3','128')" data-format="mp3" data-quality="128">
+            <div class="q-check"><svg viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div>
+            <div class="q-label">128 kbps</div>
+            <div class="q-desc">Ukuran kecil</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- MP4 PANEL -->
+      <div class="format-panel" id="panelMp4">
+        <div class="quality-grid" id="mp4Grid">
+          <!-- filled dynamically -->
+        </div>
+      </div>
+
+      <button class="btn-download" id="downloadBtn" onclick="startDownload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+
+      <!-- PROGRESS -->
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-header">
+          <span id="progressLabel">Memproses...</span>
+          <span id="progressPct">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <!-- SUCCESS -->
+      <div class="success-box" id="successBox">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        File siap! Download dimulai otomatis.
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  Dibuat dengan ❤️ oleh <span>Hybrid</span> · Hanya untuk penggunaan pribadi
+</footer>
+
+<script>
+  const API_KEY = '596fc92b91msh13fbe3ce95955e0p14db15jsn0925b6538d37';
+  const API_HOST = 'youtube-media-downloader.p.rapidapi.com';
+  const BASE_URL = 'https://youtube-media-downloader.p.rapidapi.com/v2';
+
+  let currentVideoId = null;
+  let selectedFormat = 'mp3';
+  let selectedQuality = '320';
+  let selectedMp4Id = null;
+  let videoData = null;
+
+  function extractVideoId(url) {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '0:00';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    return `${m}:${String(s).padStart(2,'0')}`;
+  }
+
+  function formatViews(n) {
+    if (!n) return '';
+    if (n >= 1e9) return (n/1e9).toFixed(1) + 'M penonton';
+    if (n >= 1e6) return (n/1e6).toFixed(1) + 'Jt penonton';
+    if (n >= 1e3) return (n/1e3).toFixed(0) + 'Rb penonton';
+    return n + ' penonton';
+  }
+
+  function showError(msg) {
+    document.getElementById('errorMsg').textContent = msg;
+    document.getElementById('errorBox').classList.add('active');
+  }
+
+  function hideError() {
+    document.getElementById('errorBox').classList.remove('active');
+  }
+
+  function setLoader(show) {
+    document.getElementById('loader').classList.toggle('active', show);
+  }
+
+  async function analyzeVideo() {
+    hideError();
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) { showError('Masukkan link YouTube terlebih dahulu.'); return; }
+
+    const vid = extractVideoId(url);
+    if (!vid) { showError('Link tidak valid. Pastikan ini adalah URL YouTube.'); return; }
+
+    currentVideoId = vid;
+    document.getElementById('analyzeBtn').disabled = true;
+    document.getElementById('previewCard').classList.remove('active');
+    document.getElementById('successBox').classList.remove('active');
+    document.getElementById('progressWrap').classList.remove('active');
+    setLoader(true);
+
+    try {
+      const res = await fetch(`${BASE_URL}/video/details?videoId=${vid}`, {
+        headers: {
+          'x-rapidapi-host': API_HOST,
+          'x-rapidapi-key': API_KEY
+        }
+      });
+
+      if (!res.ok) throw new Error('Gagal mengambil data dari API.');
+      const data = await res.json();
+
+      if (!data || data.status === false) throw new Error('Video tidak ditemukan atau tidak tersedia.');
+
+      videoData = data;
+      renderPreview(data);
+
+    } catch (e) {
+      showError(e.message || 'Terjadi kesalahan. Coba lagi.');
+    } finally {
+      setLoader(false);
+      document.getElementById('analyzeBtn').disabled = false;
+    }
+  }
+
+  function renderPreview(data) {
+    // Thumbnail
+    const thumbs = data.thumbnails || [];
+    const bestThumb = thumbs.sort((a,b) => (b.width||0)-(a.width||0))[0];
+    document.getElementById('thumbImg').src = bestThumb?.url || `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`;
+
+    // Duration
+    document.getElementById('durationBadge').textContent = formatDuration(data.lengthSeconds);
+
+    // Title
+    document.getElementById('videoTitle').textContent = data.title || 'Tanpa judul';
+
+    // Channel
+    const channelEl = document.getElementById('channelName');
+    channelEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>${data.channelTitle || '—'}`;
+
+    // Views
+    const viewEl = document.getElementById('viewCount');
+    viewEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>${formatViews(data.viewCount)}`;
+
+    // MP4 qualities
+    buildMp4Grid(data);
+
+    document.getElementById('previewCard').classList.add('active');
+  }
+
+  function buildMp4Grid(data) {
+    const grid = document.getElementById('mp4Grid');
+    grid.innerHTML = '';
+    selectedMp4Id = null;
+
+    const streams = (data.streamingData?.adaptiveFormats || [])
+      .filter(f => f.mimeType && f.mimeType.includes('video/mp4') && f.qualityLabel)
+      .sort((a,b) => (parseInt(b.qualityLabel)||0) - (parseInt(a.qualityLabel)||0));
+
+    // Deduplicate by quality label
+    const seen = new Set();
+    const unique = streams.filter(f => {
+      if (seen.has(f.qualityLabel)) return false;
+      seen.add(f.qualityLabel);
+      return true;
+    });
+
+    const qualities = unique.length > 0 ? unique : [
+      { qualityLabel: '1080p', itag: '137' },
+      { qualityLabel: '720p', itag: '22' },
+      { qualityLabel: '480p', itag: '135' },
+      { qualityLabel: '360p', itag: '18' }
+    ];
+
+    qualities.forEach((f, i) => {
+      const div = document.createElement('div');
+      div.className = 'quality-item' + (i === 0 ? ' selected' : '');
+      div.dataset.itag = f.itag;
+      div.dataset.qlabel = f.qualityLabel;
+      div.onclick = () => selectMp4(div, f.itag, f.qualityLabel);
+
+      const desc = f.qualityLabel.includes('1080') ? 'Full HD' :
+                   f.qualityLabel.includes('720') ? 'HD' :
+                   f.qualityLabel.includes('480') ? 'Standar' : 'Ringan';
+
+      div.innerHTML = `
+        <div class="q-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+        <div class="q-label">${f.qualityLabel}</div>
+        <div class="q-desc">${desc}</div>
+      `;
+      grid.appendChild(div);
+
+      if (i === 0) selectedMp4Id = f.itag;
+    });
+  }
+
+  function selectQuality(el, format, quality) {
+    document.querySelectorAll(`#panelMp3 .quality-item`).forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedQuality = quality;
+  }
+
+  function selectMp4(el, itag, qlabel) {
+    document.querySelectorAll(`#mp4Grid .quality-item`).forEach(i => i.classList.remove('selected'));
+    el.classList.add('selected');
+    selectedMp4Id = itag;
+    selectedQuality = qlabel;
+  }
+
+  function switchTab(tab) {
+    selectedFormat = tab;
+    document.getElementById('tabMp3').classList.toggle('active', tab === 'mp3');
+    document.getElementById('tabMp4').classList.toggle('active', tab === 'mp4');
+    document.getElementById('panelMp3').classList.toggle('active', tab === 'mp3');
+    document.getElementById('panelMp4').classList.toggle('active', tab === 'mp4');
+    document.getElementById('successBox').classList.remove('active');
+    document.getElementById('progressWrap').classList.remove('active');
+  }
+
+  async function startDownload() {
+    if (!currentVideoId) return;
+
+    const btn = document.getElementById('downloadBtn');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    const progressLabel = document.getElementById('progressLabel');
+    const progressPct = document.getElementById('progressPct');
+    const successBox = document.getElementById('successBox');
+
+    btn.disabled = true;
+    successBox.classList.remove('active');
+    progressWrap.classList.add('active');
+    progressFill.style.width = '0%';
+    progressPct.textContent = '0%';
+    progressLabel.textContent = selectedFormat === 'mp3' ? `Mengambil audio ${selectedQuality} kbps...` : `Mengambil video ${selectedQuality}...`;
+
+    // Simulate progress while fetching
+    let prog = 0;
+    const progInterval = setInterval(() => {
+      if (prog < 80) {
+        prog += Math.random() * 8;
+        progressFill.style.width = Math.min(prog, 80) + '%';
+        progressPct.textContent = Math.floor(Math.min(prog, 80)) + '%';
+      }
+    }, 300);
+
+    try {
+      let downloadUrl = null;
+      const title = (document.getElementById('videoTitle').textContent || 'video').replace(/[^\w\s-]/g, '').trim();
+
+      if (selectedFormat === 'mp3') {
+        const res = await fetch(`${BASE_URL}/video/mp3?videoId=${currentVideoId}&audioBitrate=${selectedQuality}`, {
+          headers: {
+            'x-rapidapi-host': API_HOST,
+            'x-rapidapi-key': API_KEY
+          }
+        });
+        if (!res.ok) throw new Error('Gagal mendapatkan link audio.');
+        const data = await res.json();
+        downloadUrl = data?.url || data?.link || data?.downloadUrl;
+        if (!downloadUrl && data?.urls) downloadUrl = Object.values(data.urls)[0];
+
+      } else {
+        const itag = selectedMp4Id || '22';
+        const res = await fetch(`${BASE_URL}/video/mp4?videoId=${currentVideoId}&itag=${itag}`, {
+          headers: {
+            'x-rapidapi-host': API_HOST,
+            'x-rapidapi-key': API_KEY
+          }
+        });
+        if (!res.ok) throw new Error('Gagal mendapatkan link video.');
+        const data = await res.json();
+        downloadUrl = data?.url || data?.link || data?.downloadUrl;
+        if (!downloadUrl && data?.urls) downloadUrl = Object.values(data.urls)[0];
+      }
+
+      clearInterval(progInterval);
+
+      if (!downloadUrl) {
+        // Fallback: try to get from streamingData
+        if (videoData?.streamingData) {
+          const formats = [...(videoData.streamingData.formats || []), ...(videoData.streamingData.adaptiveFormats || [])];
+          const match = formats.find(f => String(f.itag) === String(selectedMp4Id));
+          if (match?.url) downloadUrl = match.url;
+        }
+      }
+
+      if (!downloadUrl) throw new Error('Link download tidak tersedia. Coba kualitas lain.');
+
+      progressFill.style.width = '100%';
+      progressPct.textContent = '100%';
+      progressLabel.textContent = 'Selesai!';
+
+      // Trigger download
+      const ext = selectedFormat === 'mp3' ? 'mp3' : 'mp4';
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${title}.${ext}`;
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+
+      setTimeout(() => {
+        progressWrap.classList.remove('active');
+        successBox.classList.add('active');
+      }, 800);
+
+    } catch (e) {
+      clearInterval(progInterval);
+      progressWrap.classList.remove('active');
+      showError(e.message || 'Gagal download. Coba lagi.');
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  // Enter key support
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') analyzeVideo();
+  });
+</script>
+</body>
+</html>
